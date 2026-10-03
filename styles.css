@@ -346,3 +346,158 @@ h1 {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* =========================================================
+   Page navigation (shared)
+   ========================================================= */
+[hidden] { display: none !important; }
+
+.page-nav { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.page-nav a {
+  padding: 9px 16px; border-radius: 999px; text-decoration: none;
+  color: var(--ink); font-weight: 800; font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.16);
+  transition: background 0.2s, transform 0.2s;
+}
+.page-nav a:hover { background: rgba(255, 255, 255, 0.14); transform: translateY(-2px); }
+.page-nav a[aria-current="page"] { background: #fff; color: var(--bg-2); border-color: #fff; }
+@media (max-width: 520px) { .page-nav { margin: 0 auto; justify-content: center; } }
+
+/* =========================================================
+   Compare page
+   ========================================================= */
+.compare-layout {
+  max-width: 1200px; margin: 0 auto;
+  display: grid; gap: 20px; align-items: start;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas: "a b" "stage stage";
+}
+.side-card.a { grid-area: a; }
+.side-card.b { grid-area: b; animation-delay: 0.1s; }
+.stage-card { grid-area: stage; animation-delay: 0.2s; }
+@media (min-width: 1080px) {
+  .compare-layout { grid-template-columns: 1fr 1.45fr 1fr; grid-template-areas: "a stage b"; }
+}
+
+/* circle B uses teal instead of coral */
+.side-card.b .stepper.num input { background: linear-gradient(135deg, var(--mul), var(--mul-2)); box-shadow: 0 10px 24px -10px var(--mul); }
+.frac.b .n, b.nb { color: var(--mul); }
+b.na { color: var(--num); }
+
+/* smaller steppers so two cards fit side by side */
+.fraction-input.compact { gap: 8px; }
+.fraction-input.compact .stepper { padding: 5px; gap: 6px; border-radius: 18px; }
+.fraction-input.compact .stepper input { width: 64px; height: 52px; font-size: 1.9rem; border-radius: 13px; }
+.fraction-input.compact .step-btn { width: 38px; height: 38px; font-size: 1.3rem; border-radius: 11px; }
+.fraction-input.compact .frac-bar { width: 84px; height: 5px; }
+
+/* the draggable circle */
+.drag-src {
+  position: relative; width: min(100%, 240px); margin: 18px auto 0;
+  border-radius: 50%; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
+  transition: opacity 0.2s, transform 0.25s cubic-bezier(.3, 1.4, .5, 1);
+}
+.drag-src svg { display: block; width: 100%; aspect-ratio: 1; overflow: visible; }
+.drag-src:hover { transform: translateY(-3px) rotate(-2deg); }
+.drag-src:focus-visible { outline: 4px solid rgba(255, 255, 255, 0.6); outline-offset: 6px; }
+.drag-src.dragging { opacity: 0.3; }
+.drag-src.over { transform: scale(1.06); }
+.drag-src.over svg { filter: drop-shadow(0 0 16px var(--gold)); }
+.drag-src.placed::after {
+  content: "✓ in the overlap"; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%);
+  padding: 3px 10px; border-radius: 999px; white-space: nowrap;
+  background: var(--gold); color: #3a2400; font-weight: 800; font-size: 0.75rem;
+}
+.drag-ghost {
+  position: fixed; z-index: 50; margin: 0; pointer-events: none; overflow: visible;
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.45));
+}
+
+.cut-note { text-align: center; color: var(--ink-soft); font-size: 0.9rem; margin: 14px 0 0; min-height: 1.4em; line-height: 1.6; }
+.cut-note .frac.small { font-size: 0.95rem; vertical-align: middle; }
+.side-card .hint { margin-top: 4px; }
+
+
+/* ---------- overlap zone ---------- */
+.cmp-eq { min-height: 84px; gap: 22px; }
+.cmp-sym { font-family: var(--font-display); font-weight: 700; font-size: 2.6rem; color: var(--gold); min-width: 1ch; text-align: center; }
+.cmp-sym.unknown { color: var(--ink-mute); }
+
+.drop-zone {
+  margin-top: 12px; padding: 22px 16px 16px; border-radius: 26px;
+  border: 3px dashed rgba(255, 255, 255, 0.18); background: rgba(255, 255, 255, 0.03);
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+.drop-zone.over { border-color: var(--gold); background: rgba(255, 216, 77, 0.08); box-shadow: 0 0 0 6px rgba(255, 216, 77, 0.12); }
+.drop-zone.full { border-style: solid; border-color: rgba(255, 255, 255, 0.1); }
+
+.stack { position: relative; width: min(100%, 360px); aspect-ratio: 1; margin: 0 auto; }
+.stack::before { /* empty-plate outline */
+  content: ""; position: absolute; inset: 5%; border-radius: 50%;
+  border: 3px dashed rgba(255, 255, 255, 0.2);
+}
+.stack .layer, .stack .match-layer { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.stack .layer { opacity: 0; transform: scale(1.12); transition: opacity 0.35s ease, transform 0.5s cubic-bezier(.3, 1.4, .5, 1); }
+.stack .layer.in { opacity: 1; transform: none; }
+.stack .layer.bottom { z-index: 1; }
+.stack .layer.top { z-index: 2; }
+.stack .layer.top .plate, .stack .layer.top .plate-shadow { display: none; }
+.stack .match-layer { z-index: 3; }
+.stack .seg-label { display: none; }
+.stack .layer.a .cut { stroke: #b8361b; }
+.stack .layer.b .cut { stroke: #06706f; }
+
+.match-under, .match-line {
+  fill: none; stroke-linecap: round;
+  stroke-dasharray: 1; stroke-dashoffset: 1;
+  transition: stroke-dashoffset 0.5s cubic-bezier(.4, 0, .2, 1);
+}
+.match-under { stroke: #5a3300; opacity: 0.7; }
+.match-line { stroke: var(--gold); }
+/* dotted "here's where to cut" lines – only shown after the child asks how */
+.how-line {
+  fill: none; stroke: #2a2160; stroke-width: 1.1; stroke-dasharray: 2.5 2.5; stroke-linecap: round;
+  opacity: 0.7; animation: fade-in 0.4s ease both;
+}
+@keyframes fade-in { from { opacity: 0; } }
+.diff-wedge {
+  fill: rgba(255, 216, 77, 0.35); stroke: #ffb800; stroke-width: 3; stroke-linejoin: round;
+  animation: glow 1.4s ease-in-out infinite alternate;
+}
+@keyframes glow { from { fill-opacity: 0.25; } to { fill-opacity: 0.9; } }
+
+.drop-hint { text-align: center; margin: 14px 0 0; font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; color: var(--ink-soft); }
+.drop-zone.full .drop-hint { display: none; }
+
+.stage-legend { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; margin-top: 12px; }
+.stage-legend:empty { display: none; }
+.stage-legend .key { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; color: var(--ink-soft); }
+.stage-legend .key .frac.small { font-size: 0.95rem; }
+.stage-legend .key i { width: 22px; height: 22px; border-radius: 6px; border: 2px solid rgba(255, 255, 255, 0.5); }
+.stage-legend .key.a i { background: linear-gradient(135deg, #ffa25b, #ff4f8b); }
+.stage-legend .key.b i { background: linear-gradient(135deg, #6ff0d2, #0fa3c9); }
+.stage-legend .key.a.striped i { background: repeating-linear-gradient(45deg, #ff4f8b 0 3px, rgba(255, 79, 139, 0.2) 3px 7px), #fff; }
+.stage-legend .key.b.striped i { background: repeating-linear-gradient(45deg, #0fa3c9 0 3px, rgba(15, 163, 201, 0.2) 3px 7px), #fff; }
+
+.stage-card .explain { margin-top: 18px; }
+.stage-card .explain .frac.small { font-size: 1rem; vertical-align: middle; }
+.stage-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; align-items: center; }
+.op.convert { flex: 1 1 220px; }
+.presets { margin-top: 20px; padding-top: 16px; border-top: 1px dashed rgba(255, 255, 255, 0.15); }
+.preset-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.preset { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; }
+.preset .frac.small { font-size: 1rem; }
+.preset > span { color: var(--ink-mute); }
+
+@media (max-width: 600px) {
+  .compare-layout { gap: 12px; }
+  .side-card { padding: 14px; border-radius: 22px; }
+  .side-card .card-head { margin-bottom: 12px; gap: 8px; }
+  .side-card .card-head h2 { font-size: 1.05rem; }
+  .side-card .step-badge { width: 32px; height: 32px; font-size: 1rem; }
+  .fraction-input.compact .stepper { gap: 4px; padding: 4px; }
+  .fraction-input.compact .stepper input { width: 46px; height: 44px; font-size: 1.5rem; }
+  .fraction-input.compact .step-btn { width: 32px; height: 32px; font-size: 1.1rem; }
+  .side-card .hint { font-size: 0.8rem; }
+  .cmp-eq { min-height: 70px; }
+}

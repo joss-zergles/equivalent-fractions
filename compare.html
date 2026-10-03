@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Harry Fraction Matcher – Compare Fractions by Lining Up the Pieces</title>
+  <meta name="description" content="A friendly visual tool for children: drag two fraction circles on top of each other to see whether their pieces line up, and find out how to cut them so they do.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-blobs" aria-hidden="true"><span></span><span></span><span></span></div>
+
+  <header class="hero">
+    <svg id="logo-circle" class="logo" role="img" aria-label="Harry Fraction Matcher logo"></svg>
+    <div>
+      <h1>Harry Fraction <span class="grad-text">Matcher</span></h1>
+      <p class="tagline">Drag one circle on top of the other. Do the lines match up? If not, find out <em>how to cut them so they do</em>.</p>
+    </div>
+    <nav class="page-nav" aria-label="Pages">
+      <a href="index.html">Equivalent fractions</a>
+      <a href="compare.html" aria-current="page">Compare fractions</a>
+    </nav>
+  </header>
+
+  <main class="compare-layout">
+    <!-- circle A -->
+    <section class="card side-card a" id="card-a" aria-labelledby="title-a">
+      <div class="card-head">
+        <span class="step-badge">A</span>
+        <h2 id="title-a">First circle</h2>
+      </div>
+      <div class="fraction-input compact">
+        <div class="stepper num">
+          <button class="step-btn" data-step="-" aria-label="Circle A: shade one fewer piece">−</button>
+          <input type="number" inputmode="numeric" min="0" aria-label="Circle A numerator (top number)">
+          <button class="step-btn" data-step="+" aria-label="Circle A: shade one more piece">+</button>
+        </div>
+        <div class="frac-bar" aria-hidden="true"></div>
+        <div class="stepper den">
+          <button class="step-btn" data-step="-" aria-label="Circle A: fewer equal pieces">−</button>
+          <input type="number" inputmode="numeric" min="1" max="12" aria-label="Circle A denominator (bottom number)">
+          <button class="step-btn" data-step="+" aria-label="Circle A: more equal pieces">+</button>
+        </div>
+      </div>
+      <div class="drag-src" tabindex="0" role="button" aria-label="Circle A. Drag it into the overlap zone, or press Enter to drop it in.">
+        <svg></svg>
+      </div>
+      <p class="cut-note" aria-live="polite"></p>
+      <p class="hint">✋ Drag me to the overlap zone</p>
+    </section>
+
+    <!-- the overlap zone -->
+    <section class="card stage-card" aria-labelledby="stage-title">
+      <div class="card-head">
+        <span class="step-badge gold">★</span>
+        <h2 id="stage-title">Overlap zone</h2>
+      </div>
+
+      <div class="equation cmp-eq" id="cmp-eq" aria-live="polite"></div>
+
+      <div class="drop-zone empty" id="drop-zone">
+        <div class="stack" id="stack">
+          <svg id="layer-a" class="layer a" aria-hidden="true"></svg>
+          <svg id="layer-b" class="layer b" aria-hidden="true"></svg>
+          <svg id="match-layer" class="match-layer" viewBox="0 0 200 200" aria-hidden="true"></svg>
+        </div>
+        <p class="drop-hint" id="drop-hint"></p>
+        <div class="stage-legend" id="legend"></div>
+      </div>
+
+      <p class="explain" id="cmp-explain" aria-live="polite"></p>
+
+      <div class="stage-buttons">
+        <button id="convert-btn" class="op op-mul convert"></button>
+        <button id="undo-btn" class="ghost">↺ Join the pieces back</button>
+        <button id="clear-btn" class="ghost">⤺ Take apart</button>
+      </div>
+
+      <div class="presets">
+        <p class="control-label">Try these</p>
+        <div class="preset-list" id="presets"></div>
+      </div>
+    </section>
+
+    <!-- circle B -->
+    <section class="card side-card b" id="card-b" aria-labelledby="title-b">
+      <div class="card-head">
+        <span class="step-badge alt">B</span>
+        <h2 id="title-b">Second circle</h2>
+      </div>
+      <div class="fraction-input compact">
+        <div class="stepper num">
+          <button class="step-btn" data-step="-" aria-label="Circle B: shade one fewer piece">−</button>
+          <input type="number" inputmode="numeric" min="0" aria-label="Circle B numerator (top number)">
+          <button class="step-btn" data-step="+" aria-label="Circle B: shade one more piece">+</button>
+        </div>
+        <div class="frac-bar" aria-hidden="true"></div>
+        <div class="stepper den">
+          <button class="step-btn" data-step="-" aria-label="Circle B: fewer equal pieces">−</button>
+          <input type="number" inputmode="numeric" min="1" max="12" aria-label="Circle B denominator (bottom number)">
+          <button class="step-btn" data-step="+" aria-label="Circle B: more equal pieces">+</button>
+        </div>
+      </div>
+      <div class="drag-src" tabindex="0" role="button" aria-label="Circle B. Drag it into the overlap zone, or press Enter to drop it in.">
+        <svg></svg>
+      </div>
+      <p class="cut-note" aria-live="polite"></p>
+      <p class="hint">✋ Drag me to the overlap zone</p>
+    </section>
+  </main>
+
+  <footer class="footer">Made for curious minds 🧠 &middot; Try <sup>1</sup>&frasl;<sub>5</sub> and <sup>1</sup>&frasl;<sub>7</sub> — how many pieces would you need?</footer>
+
+  <script src="fraction-circle.js"></script>
+  <script src="compare.js"></script>
+</body>
+</html>
