@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fraction Explorer – See Why Fractions Are Equivalent</title>
+  <meta name="description" content="A friendly visual tool for children: build a fraction on a circle, then multiply or divide the top and bottom by the same number to see why equivalent fractions are the same amount.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-blobs" aria-hidden="true"><span></span><span></span><span></span></div>
+
+  <header class="hero">
+    <svg id="logo-circle" class="logo" role="img" aria-label="Fraction Explorer logo"></svg>
+    <div>
+      <h1>Fraction <span class="grad-text">Explorer</span></h1>
+      <p class="tagline">Cut the circle, shade the pieces, and discover why different fractions can be <em>exactly the same amount</em>.</p>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- STEP 1: build a fraction -->
+    <section class="card" id="start-card" aria-labelledby="start-title">
+      <div class="card-head">
+        <span class="step-badge">1</span>
+        <h2 id="start-title">Make a fraction</h2>
+      </div>
+
+      <div class="builder">
+        <div class="fraction-input">
+          <div class="stepper num">
+            <button class="step-btn" id="num-minus" aria-label="Shade one fewer piece">−</button>
+            <input id="numerator" type="number" inputmode="numeric" min="0" value="3" aria-label="Numerator (top number)">
+            <button class="step-btn" id="num-plus" aria-label="Shade one more piece">+</button>
+          </div>
+          <div class="frac-bar" aria-hidden="true"></div>
+          <div class="stepper den">
+            <button class="step-btn" id="den-minus" aria-label="Fewer equal pieces">−</button>
+            <input id="denominator" type="number" inputmode="numeric" min="1" max="24" value="4" aria-label="Denominator (bottom number)">
+            <button class="step-btn" id="den-plus" aria-label="More equal pieces">+</button>
+          </div>
+        </div>
+
+        <ul class="legend">
+          <li class="legend-num"><strong>Top</strong> (numerator)<br><span>how many pieces are shaded</span></li>
+          <li class="legend-den"><strong>Bottom</strong> (denominator)<br><span>how many equal pieces in the whole circle</span></li>
+        </ul>
+      </div>
+
+      <div class="circle-wrap">
+        <svg id="start-circle" role="img"></svg>
+      </div>
+      <p class="hint">💡 Tip: tap a slice to shade up to it.</p>
+    </section>
+
+    <!-- STEP 2: transform it -->
+    <section class="card" id="change-card" aria-labelledby="change-title">
+      <div class="card-head">
+        <span class="step-badge alt">2</span>
+        <h2 id="change-title">Do the same to the top <em>and</em> bottom</h2>
+      </div>
+
+      <div class="controls">
+        <p class="control-label">Pick a number</p>
+        <div class="chips" id="factor-chips" role="radiogroup" aria-label="Number to multiply or divide by"></div>
+
+        <div class="op-buttons">
+          <button id="multiply-btn" class="op op-mul">
+            <span class="op-sym">×</span>
+            <span class="op-text">Multiply<small>cut every piece smaller</small></span>
+          </button>
+          <button id="divide-btn" class="op op-div">
+            <span class="op-sym">÷</span>
+            <span class="op-text">Divide<small>join pieces together</small></span>
+          </button>
+        </div>
+        <p class="divide-hint" id="divide-hint"></p>
+
+        <div class="secondary-buttons">
+          <button id="simplify-btn" class="ghost">✨ Simplest form</button>
+          <button id="reset-btn" class="ghost">↺ Back to start</button>
+        </div>
+      </div>
+
+      <div class="result">
+        <div class="equation" id="equation" aria-live="polite"></div>
+        <div class="circle-wrap">
+          <svg id="current-circle" role="img"></svg>
+        </div>
+        <div class="stats">
+          <div class="stat stat-num"><span id="stat-shaded">3</span><small>shaded pieces</small></div>
+          <div class="stat stat-den"><span id="stat-total">4</span><small>total pieces</small></div>
+        </div>
+        <p class="same-badge" id="same-badge">✓ Same amount as your starting fraction</p>
+        <p class="explain" id="explain" aria-live="polite"></p>
+      </div>
+    </section>
+  </main>
+
+  <!-- STEP 3: the family of equivalent fractions -->
+  <section class="card family" aria-labelledby="family-title">
+    <div class="card-head">
+      <span class="step-badge gold">3</span>
+      <h2 id="family-title">The equivalent family</h2>
+    </div>
+    <p class="family-sub">Every circle below has the <strong>same amount shaded</strong> — so all these fractions are equal!</p>
+    <div class="trail" id="trail"></div>
+  </section>
+
+  <footer class="footer">Made for curious minds 🧠 &middot; Try making ½ into <sup>4</sup>&frasl;<sub>8</sub>, then back again!</footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
