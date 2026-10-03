@@ -3,6 +3,7 @@
    to see whether their cut lines line up
    ========================================================= */
 const MAX_START_DEN = 12;   // biggest denominator children can pick (12 × 11 = 132 pieces at most)
+const MAX_TRY = 144;        // biggest number of pieces we'll offer to try
 const SIDES = ['a', 'b'];
 const LETTER = { a: 'A', b: 'B' };
 
@@ -27,20 +28,28 @@ const cap = (s) => s[0].toUpperCase() + s.slice(1);
 const fracHTML = ({ n, d }, cls = '') => `<span class="frac ${cls}"><span class="n">${n}</span><span class="d">${d}</span></span>`;
 
 /* ---------------------------------------------------------
-   State – each circle is n/d, with every piece cut into k
-   smaller pieces (k = 1 until the child presses "Cut")
+   State – each circle shows n/d. After pressing "Cut",
+   `orig` remembers what it was before so we can join back.
    --------------------------------------------------------- */
 const state = {
-  a: { n: 1, d: 2, k: 1 },
-  b: { n: 2, d: 6, k: 1 },
-  stage: [],   // order dropped in: [0] sits underneath (solid), [1] on top (see-through)
-  showHow: false, // dotted "how to cut" lines only appear once the child asks for them
+  a: { n: 1, d: 2, orig: null },
+  b: { n: 2, d: 6, orig: null },
+  stage: [],      // order dropped in: [0] sits underneath (solid), [1] on top (see-through)
+  showHow: false, // has the child asked "how can we make them match?"
+  tryN: null,     // the number of pieces they're currently trying
+  tried: {},      // N -> true/false, so the choices remember what's been tried
 };
-const shown = (w) => ({ n: state[w].n * state[w].k, d: state[w].d * state[w].k });
+
+function resetTry() {
+  state.showHow = false;
+  state.tryN = null;
+  state.tried = {};
+}
 
 const els = {
   zone: $('#drop-zone'), stack: $('#stack'), hint: $('#drop-hint'), legend: $('#legend'),
   eq: $('#cmp-eq'), explain: $('#cmp-explain'), match: $('#match-layer'),
+  tryPanel: $('#try-panel'), tryChips: $('#try-chips'),
   convert: $('#convert-btn'), undo: $('#undo-btn'), clear: $('#clear-btn'),
 };
 
@@ -67,7 +76,25 @@ function shake(el) {
   el.classList.add('shake');
 }
 
-/* ---------- steppers ---------- */
+/* ---------- changing a circle ---------- */
+function setShaded(w, n) {
+  const s = state[w];
+  if (n === s.n) return;
+  s.n = n;
+  s.orig = null; // no longer just a cut-up copy of the old fraction
+  render();
+}
+
+function setPieces(w, d) {
+  // new pieces → put any cut circles back and start the puzzle again
+  SIDES.forEach((x) => { if (state[x].orig) Object.assign(state[x], state[x].orig, { orig: null }); });
+  const s = state[w];
+  s.d = d;
+  s.n = Math.min(s.n, d);
+  resetTry();
+  render();
+}
+
 function bindStepper(w, which) {
   const input = which === 'n' ? side[w].num : side[w].den;
   const box = input.parentElement;
@@ -75,19 +102,15 @@ function bindStepper(w, which) {
     const s = state[w];
     if (which === 'n') {
       if (v < 0 || v > s.d) { shake(box); v = clamp(v, 0, s.d); }
-      s.n = v;
+      setShaded(w, v);
     } else {
       if (v < 1 || v > MAX_START_DEN) { shake(box); v = clamp(v, 1, MAX_START_DEN); }
-      if (v !== s.d) {
-        s.d = v;
-        s.n = Math.min(s.n, v);
-        SIDES.forEach((x) => { state[x].k = 1; }); // new pieces → any cutting plan starts again
-        state.showHow = false;
-      }
+      if (v !== s.d) setPieces(w, v);
     }
     render();
   };
-  const cur = () => (which === 'n' ? state[w].n : state[w].d);
+  // after cutting, the +/− on the bottom number carry on from the original pieces
+  const cur = () => (which === 'n' ? state[w].n : (state[w].orig || state[w]).d);
   box.querySelector('[data-step="-"]').addEventListener('click', () => set(cur() - 1));
   box.querySelector('[data-step="+"]').addEventListener('click', () => set(cur() + 1));
   input.addEventListener('change', () => {
@@ -99,9 +122,20 @@ function bindStepper(w, which) {
 }
 SIDES.forEach((w) => { bindStepper(w, 'n'); bindStepper(w, 'd'); });
 
+/** tap a slice to shade up to it; tap the last shaded slice again to un-shade it */
+function tapSlice(w, x, y) {
+  const r = side[w].circle.svg.getBoundingClientRect();
+  const dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
+  if (Math.hypot(dx, dy) > r.width * 0.45) return; // missed the circle
+  const turn = (Math.atan2(dx, -dy) / (Math.PI * 2) + 1) % 1; // 0 at 12 o'clock, clockwise
+  const { n, d } = state[w];
+  const i = Math.min(d - 1, Math.floor(turn * d));
+  setShaded(w, n === i + 1 ? i : i + 1);
+}
+
 /* ---------------------------------------------------------
    Drag & drop – pointer events so it works with fingers too.
-   A tap (or Enter) also drops the circle in.
+   Only a drag puts a circle in the overlap zone; a tap shades.
    --------------------------------------------------------- */
 function makeGhost(w) {
   const svg = side[w].circle.svg;
@@ -150,7 +184,6 @@ function bindDrag(w) {
   src.addEventListener('pointerdown', (e) => {
     if (e.button !== 0 || drag) return;
     e.preventDefault();
-    src.focus({ preventScroll: true });
     src.setPointerCapture(e.pointerId);
     drag = { x0: e.clientX, y0: e.clientY, ghost: null };
   });
@@ -161,17 +194,20 @@ function bindDrag(w) {
       if (Math.hypot(dx, dy) < 8) return;
       drag.ghost = makeGhost(w);
       src.classList.add('dragging');
+      document.body.classList.add('is-dragging'); // stop the drag selecting text on the page
+      getSelection().removeAllRanges();
     }
     drag.ghost.el.style.transform = `translate(${dx}px, ${dy}px) scale(1.06)`;
     highlight(targetAt(e.clientX, e.clientY, w));
   });
   const end = (e, cancelled) => {
     if (!drag) return;
-    const { ghost } = drag;
+    const { ghost, x0, y0 } = drag;
     drag = null;
     highlight(null);
-    if (!ghost) { // a tap: fly straight into the overlap zone
-      if (!cancelled) flyGhost(makeGhost(w), () => drop(w));
+    document.body.classList.remove('is-dragging');
+    if (!ghost) { // a tap, not a drag
+      if (!cancelled) tapSlice(w, x0, y0);
       return;
     }
     const t = cancelled ? null : targetAt(e.clientX, e.clientY, w);
@@ -187,22 +223,67 @@ function bindDrag(w) {
   src.addEventListener('pointercancel', (e) => end(e, true));
   // released somewhere we never heard about (e.g. outside the window) – don't leave the ghost stuck
   src.addEventListener('lostpointercapture', (e) => end(e, true));
-  src.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); drop(w); }
-  });
 }
 SIDES.forEach(bindDrag);
 
+/* ---------------------------------------------------------
+   "How can we make them match?" – numbers to try
+   --------------------------------------------------------- */
+/** a few sensible guesses, including the tempting wrong ones (the bigger number, adding them) */
+function tryOptions(A, B) {
+  const L = lcm(A.d, B.d);
+  const opts = new Set([Math.max(A.d, B.d), A.d + B.d, A.d * B.d, L, 2 * L]);
+  return [...opts].filter((n) => n >= 2 && n <= MAX_TRY).sort((x, y) => x - y);
+}
+const works = (N, A, B) => N % A.d === 0 && N % B.d === 0;
+
+/** why trying N pieces does or doesn't work, in kid-sized words */
+function tryExplain(N, A, B) {
+  const L = lcm(A.d, B.d);
+  const okFor = (d) => N % d === 0;
+  const why = (d) => (N === d
+    ? `the ${denName(d)} circle already has ${N} pieces`
+    : `${N} is in the ${d} times table (${d} × ${N / d} = ${N})`);
+
+  if (works(N, A, B)) {
+    return {
+      kind: 'mul',
+      html: N === L
+        ? `✅ <strong>Yes!</strong> ${cap(why(A.d))}, and ${why(B.d)}. So every line lands on a dotted line — and <strong>${N}</strong> is the smallest number that works!`
+        : `✅ <strong>That works too!</strong> ${cap(why(A.d))}, and ${why(B.d)}, so every line lands on a dotted line. But the pieces are tiny — can you find a <strong>smaller</strong> number that works?`,
+    };
+  }
+  const bad = [A.d, B.d].filter((d) => !okFor(d));
+  const good = [A.d, B.d].filter(okFor);
+  let html = '❌ <strong>Not quite.</strong> ';
+  if (N === A.d + B.d) html += `Adding the bottom numbers (${A.d} + ${B.d}) doesn’t work. `;
+  html += bad.length === 2
+    ? `${N} isn’t in the ${A.d} or the ${B.d} times table, so lines from <strong>both</strong> circles land in the middle of a piece (the red lines).`
+    : `${N} isn’t in the ${bad[0]} times table, so some ${denName(bad[0])} lines land in the middle of a piece (the red lines).`;
+  if (good.length === 1) html += ` It works for the ${denName(good[0])}, though!`;
+  return { kind: 'warn', html };
+}
+
+function cutInto(N) {
+  SIDES.forEach((w) => {
+    const s = state[w];
+    if (N === s.d) return;
+    s.orig = s.orig || { n: s.n, d: s.d };
+    s.n *= N / s.d;
+    s.d = N;
+  });
+  resetTry();
+  render();
+}
+
 /* ---------- buttons ---------- */
 els.convert.addEventListener('click', () => {
-  if (!state.showHow) { state.showHow = true; render(); return; } // first press: show how, second: cut
-  const L = lcm(shown('a').d, shown('b').d);
-  SIDES.forEach((w) => { state[w].k = L / state[w].d; });
-  render();
+  if (!state.showHow) { state.showHow = true; render(); return; }
+  if (state.tryN && works(state.tryN, state.a, state.b)) cutInto(state.tryN);
 });
 els.undo.addEventListener('click', () => {
-  SIDES.forEach((w) => { state[w].k = 1; });
-  state.showHow = false;
+  SIDES.forEach((w) => { const s = state[w]; if (s.orig) Object.assign(s, s.orig, { orig: null }); });
+  resetTry();
   render();
 });
 els.clear.addEventListener('click', () => {
@@ -217,9 +298,9 @@ PRESETS.forEach(([an, ad, bn, bd]) => {
   b.innerHTML = `${fracHTML({ n: an, d: ad }, 'small a')}<span>&amp;</span>${fracHTML({ n: bn, d: bd }, 'small b')}`;
   b.setAttribute('aria-label', `Try ${an}/${ad} and ${bn}/${bd}`);
   b.addEventListener('click', () => {
-    state.a = { n: an, d: ad, k: 1 };
-    state.b = { n: bn, d: bd, k: 1 };
-    state.showHow = false;
+    state.a = { n: an, d: ad, orig: null };
+    state.b = { n: bn, d: bd, orig: null };
+    resetTry();
     render();
   });
   $('#presets').appendChild(b);
@@ -229,43 +310,44 @@ PRESETS.forEach(([an, ad, bn, bd]) => {
    Render
    --------------------------------------------------------- */
 function render({ animate = true } = {}) {
-  const A = shown('a'), B = shown('b');
-  const L = lcm(A.d, B.d);
+  const A = state.a, B = state.b;
 
   SIDES.forEach((w) => {
-    const s = state[w], sh = shown(w), S = side[w];
+    const s = state[w], S = side[w];
     const pos = state.stage.indexOf(w);
     S.num.value = s.n;
     S.den.value = s.d;
     S.num.max = s.d;
 
-    S.circle.setFraction(sh.n, sh.d, { animate });
+    S.circle.setFraction(s.n, s.d, { animate });
 
-    S.layer.setFraction(sh.n, sh.d, { animate });
+    S.layer.setFraction(s.n, s.d, { animate });
     S.layer.svg.classList.toggle('in', pos >= 0);
     S.layer.svg.classList.toggle('bottom', pos === 0);
     S.layer.svg.classList.toggle('top', pos === 1);
     S.src.classList.toggle('placed', pos >= 0);
 
-    S.note.innerHTML = s.k > 1
-      ? `✂️ Cut into ${denName(sh.d)}: ${fracHTML(s, `small ${w}`)} = ${fracHTML(sh, `small ${w}`)}`
+    S.note.innerHTML = s.orig
+      ? `✂️ Cut into ${denName(s.d)}: ${fracHTML(s.orig, `small ${w}`)} = ${fracHTML(s, `small ${w}`)}`
       : '';
   });
 
-  renderStage(A, B, L);
+  renderStage(A, B);
 }
 
-function renderStage(A, B, L) {
+function renderStage(A, B) {
   const both = state.stage.length === 2;
   const same = A.d === B.d;
+  const L = lcm(A.d, B.d);
   const fits = !same && L === Math.max(A.d, B.d);
+  const puzzle = both && !same; // the lines don't all match yet
 
   els.zone.classList.toggle('empty', !state.stage.length);
   els.zone.classList.toggle('full', both);
   els.hint.textContent = !state.stage.length ? 'Drag circle A or B in here'
     : both ? '' : `Now drag circle ${LETTER[other(state.stage[0])]} on top!`;
   els.legend.innerHTML = state.stage
-    .map((w, i) => `<span class="key ${w} ${i ? 'see-through' : 'solid'}"><i></i>${LETTER[w]} ${fracHTML(shown(w), `small ${w}`)}</span>`)
+    .map((w, i) => `<span class="key ${w} ${i ? 'see-through' : 'solid'}"><i></i>${LETTER[w]} ${fracHTML(state[w], `small ${w}`)}</span>`)
     .join('');
 
   const sym = both && same ? (A.n > B.n ? '>' : A.n < B.n ? '<' : '=') : '?';
@@ -273,16 +355,17 @@ function renderStage(A, B, L) {
 
   renderMatch(A, B, both, same);
 
-  // explanation + what the Cut button does
+  // explanation
   let html, kind = '';
   if (same) {
     const d = A.d;
     if (!both) {
       html = `Both circles are cut into <strong>${denName(d)}</strong>, so all the pieces are the same size. Drag them together and count!`;
     } else if (A.n === B.n) {
-      const baseDiffers = state.a.n !== state.b.n || state.a.d !== state.b.d;
+      const oa = A.orig || A, ob = B.orig || B;
+      const baseDiffers = oa.n !== ob.n || oa.d !== ob.d;
       html = `🎉 <strong>Exactly the same amount!</strong> Every line matches and both have <b>${A.n}</b> ${denName(d, A.n !== 1)} shaded` +
-        (baseDiffers ? ` — so ${fracHTML(state.a, 'small a')} = ${fracHTML(state.b, 'small b')}` : '') + '.';
+        (baseDiffers ? ` — so ${fracHTML(oa, 'small a')} = ${fracHTML(ob, 'small b')}` : '') + '.';
       kind = 'mul';
     } else {
       const big = A.n > B.n ? 'a' : 'b';
@@ -293,66 +376,86 @@ function renderStage(A, B, L) {
     }
   } else if (!both) {
     html = 'Drag <strong>both</strong> circles into the overlap zone. Do their lines match up?';
+  } else if (state.tryN) {
+    ({ html, kind } = tryExplain(state.tryN, A, B));
   } else {
-    const how = state.showHow;
-    const btn = (icon, text, small) => `<span class="op-sym">${icon}</span><span class="op-text">${text}<small>${small}</small></span>`;
-    if (fits) {
-      const small = A.d < B.d ? 'a' : 'b';
-      const sd = shown(small).d, bd = L;
-      html = `✨ Look at the gold lines: every line on the <strong>${denName(sd)}</strong> circle lands exactly on a line of the <strong>${denName(bd)}</strong> circle! ` +
-        (how
-          ? `That means each ${denName(sd, false)} is the same as <strong>${bd / sd} ${denName(bd)}</strong>. Cut each ${denName(sd, false)} into ${bd / sd} and the pieces will all be the same size.`
-          : `But the pieces are different sizes, so we can’t count them yet…`);
-      els.convert.innerHTML = how
-        ? btn('✂️', `Cut the ${denName(sd)}`, `into ${denName(bd)}`)
-        : btn('🔍', 'How can we make them match?', 'show me');
-    } else {
-      const g = gcd(A.d, B.d);
-      html = `🤔 The lines don’t line up! ${cap(denName(A.d))} and ${denName(B.d)} are different-sized pieces, so we can’t compare them by counting. ` +
-        (g > 1 ? 'Only the gold lines match. ' : '') +
-        (how
-          ? `<strong>${L}</strong> is the smallest number both go into (${A.d} × ${L / A.d} = ${L} and ${B.d} × ${L / B.d} = ${L}), ` +
-            `so the dotted lines show how to cut both circles into <strong>${denName(L)}</strong>.`
-          : '');
-      kind = 'div';
-      els.convert.innerHTML = how
-        ? btn('✂️', 'Cut both', `into ${denName(L)}`)
-        : btn('🔍', 'How can we make them match?', 'show me');
-    }
+    const g = gcd(A.d, B.d);
+    html = fits
+      ? `✨ Look at the gold lines: every line on the <strong>${denName(Math.min(A.d, B.d))}</strong> circle lands exactly on a line of the <strong>${denName(L)}</strong> circle! But the pieces are different sizes, so we can’t count them yet…`
+      : `🤔 The lines don’t line up! ${cap(denName(A.d))} and ${denName(B.d)} are different-sized pieces, so we can’t compare them by counting.` +
+        (g > 1 ? ' Only the gold lines match.' : '');
+    if (state.showHow) html += ` <strong>How many pieces could we cut both circles into so that every line matches?</strong> Pick a number to try it!`;
+    kind = fits ? '' : 'div';
   }
   els.explain.className = `explain ${kind}`;
   els.explain.innerHTML = html;
 
-  els.convert.hidden = same || !both;
-  els.undo.hidden = state.a.k === 1 && state.b.k === 1;
+  // numbers to try
+  els.tryPanel.hidden = !(puzzle && state.showHow);
+  if (!els.tryPanel.hidden) {
+    els.tryChips.innerHTML = '';
+    tryOptions(A, B).forEach((N) => {
+      const b = document.createElement('button');
+      b.className = 'chip';
+      b.setAttribute('role', 'radio');
+      b.setAttribute('aria-checked', String(state.tryN === N));
+      b.setAttribute('aria-label', `Try cutting both circles into ${N} pieces`);
+      const tried = state.tried[N];
+      b.innerHTML = `${N}${tried === undefined ? '' : `<span class="mark ${tried ? 'good' : 'bad'}">${tried ? '✓' : '✗'}</span>`}`;
+      b.addEventListener('click', () => {
+        state.tryN = N;
+        state.tried[N] = works(N, A, B);
+        render();
+      });
+      els.tryChips.appendChild(b);
+    });
+  }
+
+  // main button: first "how?", then "cut" once they've found a number that works
+  const btn = (icon, text, small) => `<span class="op-sym">${icon}</span><span class="op-text">${text}<small>${small}</small></span>`;
+  const canCut = state.tryN && works(state.tryN, A, B);
+  if (!state.showHow) {
+    els.convert.innerHTML = btn('🔍', 'How can we make them match?', 'show me');
+  } else if (canCut) {
+    const N = state.tryN;
+    const needCut = SIDES.filter((w) => state[w].d !== N);
+    els.convert.innerHTML = needCut.length === 1
+      ? btn('✂️', `Cut the ${denName(state[needCut[0]].d)}`, `into ${denName(N)}`)
+      : btn('✂️', 'Cut both', `into ${denName(N)}`);
+  }
+  els.convert.hidden = !puzzle || (state.showHow && !canCut);
+  els.undo.hidden = !A.orig && !B.orig;
   els.clear.hidden = !state.stage.length;
 }
 
-/** gold lines where both circles have a cut, dotted lines showing where to cut (once asked for),
+/** gold lines where both circles have a cut, dotted lines + red misfits for the number being tried,
     and a glowing wedge for the difference once the pieces match */
 let matchKey = '';
 function renderMatch(A, B, both, same) {
   const g = gcd(A.d, B.d);
   const wedge = both && same && A.n !== B.n ? [Math.min(A.n, B.n) / A.d, Math.max(A.n, B.n) / A.d] : null;
-  const showHow = both && !same && state.showHow;
-  const key = `${both}|${A.d}|${B.d}|${wedge}|${showHow}`;
+  const N = both && !same ? state.tryN : null;
+  const key = `${both}|${A.d}|${B.d}|${wedge}|${N}`;
   if (key === matchKey) return;
   matchKey = key;
 
   const geo = side.a.layer; // same geometry as every stage circle
+  const line = (frac, cls) => {
+    const [x, y] = geo.pt(frac);
+    const p = document.createElementNS(SVG_NS, 'path');
+    p.setAttribute('d', `M${geo.cx} ${geo.cy} L${x.toFixed(2)} ${y.toFixed(2)}`);
+    p.classList.add(cls);
+    els.match.appendChild(p);
+    return p;
+  };
   els.match.innerHTML = '';
   if (!both) return;
 
-  if (showHow) {
-    const L = lcm(A.d, B.d);
-    for (let i = 0; i < L; i++) {
-      if ((i * A.d) % L === 0 || (i * B.d) % L === 0) continue; // already a real cut on one of the circles
-      const [x, y] = geo.pt(i / L);
-      const p = document.createElementNS(SVG_NS, 'path');
-      p.setAttribute('d', `M${geo.cx} ${geo.cy} L${x.toFixed(2)} ${y.toFixed(2)}`);
-      p.classList.add('how-line');
-      p.style.animationDelay = `${i * Math.min(25, 600 / L)}ms`;
-      els.match.appendChild(p);
+  if (N) {
+    // dotted lines: where cutting into N pieces would add new cuts
+    for (let i = 0; i < N; i++) {
+      if ((i * A.d) % N === 0 || (i * B.d) % N === 0) continue; // already a real cut on one of the circles
+      line(i / N, 'how-line').style.animationDelay = `${i * Math.min(25, 600 / N)}ms`;
     }
   }
 
@@ -363,20 +466,23 @@ function renderMatch(A, B, both, same) {
     els.match.appendChild(p);
   }
 
-  if (g < 2) return; // only the starting line is shared
-  const w = g > 24 ? 1.3 : g > 12 ? 2 : 3.2;
-  const stagger = Math.min(60, 700 / g);
-  for (let i = 0; i < g; i++) {
-    const [x, y] = geo.pt(i / g);
-    const d = `M${geo.cx} ${geo.cy} L${x.toFixed(2)} ${y.toFixed(2)}`;
-    ['match-under', 'match-line'].forEach((cls) => {
-      const p = document.createElementNS(SVG_NS, 'path');
-      p.setAttribute('d', d);
-      p.setAttribute('pathLength', '1');
-      p.classList.add(cls);
-      p.style.strokeWidth = cls === 'match-line' ? w : w + 2.4;
-      els.match.appendChild(p);
-      setTimeout(() => { p.style.strokeDashoffset = '0'; }, 650 + i * stagger);
+  if (g >= 2) {
+    const w = g > 24 ? 1.3 : g > 12 ? 2 : 3.2;
+    const stagger = Math.min(60, 700 / g);
+    for (let i = 0; i < g; i++) {
+      ['match-under', 'match-line'].forEach((cls) => {
+        const p = line(i / g, cls);
+        p.setAttribute('pathLength', '1');
+        p.style.strokeWidth = cls === 'match-line' ? w : w + 2.4;
+        setTimeout(() => { p.style.strokeDashoffset = '0'; }, 650 + i * stagger);
+      });
+    }
+  }
+
+  if (N) {
+    // red: real cuts that don't land on any of the N pieces' lines
+    [A.d, B.d].forEach((d) => {
+      for (let j = 1; j < d; j++) if ((j * N) % d !== 0) line(j / d, 'miss-line');
     });
   }
 }

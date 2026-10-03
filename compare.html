@@ -45,11 +45,11 @@
           <button class="step-btn" data-step="+" aria-label="Circle A: more equal pieces">+</button>
         </div>
       </div>
-      <div class="drag-src" tabindex="0" role="button" aria-label="Circle A. Drag it into the overlap zone, or press Enter to drop it in.">
+      <div class="drag-src">
         <svg></svg>
       </div>
       <p class="cut-note" aria-live="polite"></p>
-      <p class="hint">✋ Drag me to the overlap zone</p>
+      <p class="hint">👆 Tap a piece to shade it<br>✋ Drag me to the overlap zone</p>
     </section>
 
     <!-- the overlap zone -->
@@ -72,6 +72,11 @@
       </div>
 
       <p class="explain" id="cmp-explain" aria-live="polite"></p>
+
+      <div class="try-panel" id="try-panel" hidden>
+        <p class="control-label">Cut both circles into…</p>
+        <div class="chips" id="try-chips" role="radiogroup" aria-label="Number of pieces to try"></div>
+      </div>
 
       <div class="stage-buttons">
         <button id="convert-btn" class="op op-mul convert"></button>
@@ -104,11 +109,11 @@
           <button class="step-btn" data-step="+" aria-label="Circle B: more equal pieces">+</button>
         </div>
       </div>
-      <div class="drag-src" tabindex="0" role="button" aria-label="Circle B. Drag it into the overlap zone, or press Enter to drop it in.">
+      <div class="drag-src">
         <svg></svg>
       </div>
       <p class="cut-note" aria-live="polite"></p>
-      <p class="hint">✋ Drag me to the overlap zone</p>
+      <p class="hint">👆 Tap a piece to shade it<br>✋ Drag me to the overlap zone</p>
     </section>
   </main>
 
