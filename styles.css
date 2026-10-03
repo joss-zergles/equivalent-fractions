@@ -442,6 +442,8 @@ b.na { color: var(--num); }
 .stack .layer.bottom { z-index: 1; }
 .stack .layer.top { z-index: 2; }
 .stack .layer.top .plate, .stack .layer.top .plate-shadow { display: none; }
+/* the top circle is see-through: its colour mixes with the one underneath where they overlap */
+.stack .layer.top .shade { opacity: 0.6; }
 .stack .match-layer { z-index: 3; }
 .stack .seg-label { display: none; }
 .stack .layer.a .cut { stroke: #b8361b; }
@@ -476,8 +478,7 @@ b.na { color: var(--num); }
 .stage-legend .key i { width: 22px; height: 22px; border-radius: 6px; border: 2px solid rgba(255, 255, 255, 0.5); }
 .stage-legend .key.a i { background: linear-gradient(135deg, #ffa25b, #ff4f8b); }
 .stage-legend .key.b i { background: linear-gradient(135deg, #6ff0d2, #0fa3c9); }
-.stage-legend .key.a.striped i { background: repeating-linear-gradient(45deg, #ff4f8b 0 3px, rgba(255, 79, 139, 0.2) 3px 7px), #fff; }
-.stage-legend .key.b.striped i { background: repeating-linear-gradient(45deg, #0fa3c9 0 3px, rgba(15, 163, 201, 0.2) 3px 7px), #fff; }
+.stage-legend .key.see-through i { opacity: 0.55; }
 
 .stage-card .explain { margin-top: 18px; }
 .stage-card .explain .frac.small { font-size: 1rem; vertical-align: middle; }

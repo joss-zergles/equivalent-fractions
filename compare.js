@@ -33,7 +33,7 @@ const fracHTML = ({ n, d }, cls = '') => `<span class="frac ${cls}"><span class=
 const state = {
   a: { n: 1, d: 2, k: 1 },
   b: { n: 2, d: 6, k: 1 },
-  stage: [],   // order dropped in: [0] sits underneath (solid), [1] on top (striped)
+  stage: [],   // order dropped in: [0] sits underneath (solid), [1] on top (see-through)
   showHow: false, // dotted "how to cut" lines only appear once the child asks for them
 };
 const shown = (w) => ({ n: state[w].n * state[w].k, d: state[w].d * state[w].k });
@@ -49,12 +49,6 @@ SIDES.forEach((w) => {
   const card = $(`#card-${w}`);
   const theme = w === 'a' ? 'coral' : 'teal';
   const layer = new FractionCircle($(`#layer-${w}`), { theme });
-  // the circle on top is drawn with stripes so you can see the one underneath through it
-  layer.svg.querySelector('defs').insertAdjacentHTML('beforeend', `
-    <pattern id="${layer.id}-stripes" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-      <rect width="7" height="7" fill="${CIRCLE_THEMES[theme][2]}" fill-opacity="0.16"/>
-      <rect width="3.2" height="7" fill="${CIRCLE_THEMES[theme][2]}"/>
-    </pattern>`);
   side[w] = {
     card,
     num: card.querySelector('.num input'),
@@ -248,7 +242,6 @@ function render({ animate = true } = {}) {
     S.circle.setFraction(sh.n, sh.d, { animate });
 
     S.layer.setFraction(sh.n, sh.d, { animate });
-    S.layer.shadeEl.setAttribute('fill', `url(#${S.layer.id}-${pos === 1 ? 'stripes' : 'fill'})`);
     S.layer.svg.classList.toggle('in', pos >= 0);
     S.layer.svg.classList.toggle('bottom', pos === 0);
     S.layer.svg.classList.toggle('top', pos === 1);
@@ -272,7 +265,7 @@ function renderStage(A, B, L) {
   els.hint.textContent = !state.stage.length ? 'Drag circle A or B in here'
     : both ? '' : `Now drag circle ${LETTER[other(state.stage[0])]} on top!`;
   els.legend.innerHTML = state.stage
-    .map((w, i) => `<span class="key ${w} ${i ? 'striped' : 'solid'}"><i></i>${LETTER[w]} ${fracHTML(shown(w), `small ${w}`)}</span>`)
+    .map((w, i) => `<span class="key ${w} ${i ? 'see-through' : 'solid'}"><i></i>${LETTER[w]} ${fracHTML(shown(w), `small ${w}`)}</span>`)
     .join('');
 
   const sym = both && same ? (A.n > B.n ? '>' : A.n < B.n ? '<' : '=') : '?';
