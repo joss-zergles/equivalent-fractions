@@ -177,6 +177,13 @@ h1 {
 .fraction-circle .hit { fill: transparent; cursor: pointer; transition: fill 0.15s; }
 .fraction-circle .hit:hover { fill: rgba(143, 124, 255, 0.22); }
 .fraction-circle .shade { transition: filter 0.3s; }
+.fraction-circle .seg-label {
+  font-family: var(--font-display); font-weight: 700;
+  text-anchor: middle; dominant-baseline: central;
+  fill: #5b4fa8; pointer-events: none; user-select: none;
+  transition: opacity 0.4s ease, fill 0.4s ease;
+}
+.fraction-circle .seg-label.on { fill: #ffffff; }
 
 .fraction-circle.pop { animation: pop 0.7s cubic-bezier(.3, 1.6, .5, 1); }
 @keyframes pop { 40% { transform: scale(1.05); } }

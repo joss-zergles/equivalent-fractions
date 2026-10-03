@@ -48,11 +48,13 @@ class FractionCircle {
       <circle class="plate" cx="${this.cx}" cy="${this.cy}" r="${this.r}" fill="url(#${this.id}-plate)"/>
       <path class="shade" fill="url(#${this.id}-fill)"/>
       <g class="lines"></g>
+      <g class="labels"></g>
       <circle class="rim" cx="${this.cx}" cy="${this.cy}" r="${this.r}"/>
       <g class="hits"></g>
       <circle class="hub" cx="${this.cx}" cy="${this.cy}" r="${mini ? 5 : 3.2}"/>`;
     this.shadeEl = svg.querySelector('.shade');
     this.linesG = svg.querySelector('.lines');
+    this.labelsG = svg.querySelector('.labels');
     this.hitsG = svg.querySelector('.hits');
     if (mini) svg.querySelector('.rim').style.strokeWidth = 8;
   }
@@ -152,11 +154,56 @@ class FractionCircle {
     }
   }
 
+  /** small numbers 1..d in the middle of each slice (skipped on mini circles / when too thin) */
+  updateLabels(n, d, animate) {
+    const old = [...this.labelsG.children];
+    const sameLayout = old.length === d && this.labelD === d;
+    this.labelD = d;
+
+    // same pieces, only the shading changed: just recolour
+    if (sameLayout) {
+      old.forEach((t, i) => t.classList.toggle('on', i < n));
+      return;
+    }
+
+    old.forEach((t) => {
+      if (!animate) { t.remove(); return; }
+      t.style.opacity = '0';
+      setTimeout(() => t.remove(), 400);
+    });
+
+    if (this.mini || d > 60) return;
+
+    const rr = d === 1 ? 0 : d <= 6 ? 0.6 : d <= 16 ? 0.7 : 0.8;
+    const rho = this.r * rr;
+    const arc = d === 1 ? 60 : (2 * Math.PI * rho) / d;
+    const size = Math.max(4.5, Math.min(22, arc * 0.55));
+    const delay0 = animate ? 650 : 0;
+    const stagger = Math.min(35, 500 / d);
+
+    for (let i = 0; i < d; i++) {
+      const mid = (i + 0.5) / d * Math.PI * 2 - Math.PI / 2;
+      const t = document.createElementNS(SVG_NS, 'text');
+      t.setAttribute('x', (this.cx + rho * Math.cos(mid)).toFixed(2));
+      t.setAttribute('y', (this.cy + rho * Math.sin(mid)).toFixed(2));
+      t.setAttribute('font-size', size.toFixed(2));
+      t.classList.add('seg-label');
+      if (i < n) t.classList.add('on');
+      t.textContent = i + 1;
+      if (animate) {
+        t.style.opacity = '0';
+        setTimeout(() => { t.style.opacity = '1'; }, delay0 + i * stagger);
+      }
+      this.labelsG.appendChild(t);
+    }
+  }
+
   setFraction(n, d, { animate = true, pop = false } = {}) {
     this.n = n; this.d = d;
     const w = d > 60 ? 0.7 : d > 36 ? 1 : d > 18 ? 1.4 : 2;
     this.svg.style.setProperty('--cut-w', this.mini ? w * 2.6 : w);
     this.updateLines(d, animate);
+    this.updateLabels(n, d, animate);
     if (animate) this.animateValue(n / d);
     else { this.value = n / d; this.drawShade(this.value); }
     if (this.interactive) this.buildHits(d);
