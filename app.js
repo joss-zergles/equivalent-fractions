@@ -129,7 +129,8 @@ function applyChange(next, op) {
   state.current = next;
   state.lastOp = op;
   state.history.push({ ...next, op });
-  currentCircle.setFraction(next.n, next.d, { pop: true });
+  // after multiplying by k, number each old piece's new slices 1..k for a moment
+  currentCircle.setFraction(next.n, next.d, { pop: true, group: op.type === 'mul' ? op.k : 0 });
   render(true);
 }
 
@@ -143,7 +144,7 @@ function multiply() {
   }
   applyChange({ n: n * k, d: d * k }, { type: 'mul', k, prev: { n, d } });
   setExplain(
-    `✂️ Every piece was cut into <strong>${k}</strong> smaller pieces. ` +
+    `✂️ Every piece was cut into <strong>${k}</strong> smaller pieces${d * k <= 60 ? ` — look at the numbers 1 to ${k} in each one` : ''}! ` +
     `So now there are ${k} times as many pieces (<b class="d">${d}</b> → <b class="d">${d * k}</b>) ` +
     `and ${k} times as many shaded pieces (<b class="n">${n}</b> → <b class="n">${n * k}</b>). ` +
     `The pieces got smaller, but the shaded part is <strong>exactly the same size</strong>!`, 'mul');

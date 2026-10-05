@@ -3,6 +3,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const gcd = (a, b) => { a = Math.abs(a); b = Math.abs(b); while (b) [a, b] = [b, a % b]; return a; };
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 let uid = 0;
+const GROUP_LABEL_MS = 5000; // how long the 1..k group numbering stays after multiplying
 
 /* ---------------------------------------------------------
    FractionCircle – draws a circle cut into d equal slices
@@ -152,8 +153,10 @@ class FractionCircle {
     }
   }
 
-  /** small numbers 1..d in the middle of each slice (skipped on mini circles / when too thin) */
-  updateLabels(n, d, animate) {
+  /** small numbers 1..d in the middle of each slice (skipped on mini circles / when too thin).
+      With `group` k, number each run of k slices 1..k for a few seconds first – so after
+      multiplying by k you can see every old piece was cut into k new ones. */
+  updateLabels(n, d, animate, group = 0) {
     const old = [...this.labelsG.children];
     const sameLayout = old.length === d && this.labelD === d;
     this.labelD = d;
@@ -163,6 +166,7 @@ class FractionCircle {
       old.forEach((t, i) => t.classList.toggle('on', i < n));
       return;
     }
+    clearTimeout(this.groupTimer); // a new layout replaces any group numbering still showing
 
     old.forEach((t) => {
       if (!animate) { t.remove(); return; }
@@ -187,21 +191,29 @@ class FractionCircle {
       t.setAttribute('font-size', size.toFixed(2));
       t.classList.add('seg-label');
       if (i < n) t.classList.add('on');
-      t.textContent = i + 1;
+      t.textContent = group > 1 ? (i % group) + 1 : i + 1;
       if (animate) {
         t.style.opacity = '0';
         setTimeout(() => { t.style.opacity = '1'; }, delay0 + i * stagger);
       }
       this.labelsG.appendChild(t);
     }
+
+    if (group > 1) {
+      const labels = [...this.labelsG.children].slice(-d);
+      this.groupTimer = setTimeout(() => {
+        labels.forEach((t) => { t.style.opacity = '0'; });
+        this.groupTimer = setTimeout(() => labels.forEach((t, i) => { t.textContent = i + 1; t.style.opacity = '1'; }), 400);
+      }, delay0 + GROUP_LABEL_MS);
+    }
   }
 
-  setFraction(n, d, { animate = true, pop = false } = {}) {
+  setFraction(n, d, { animate = true, pop = false, group = 0 } = {}) {
     this.n = n; this.d = d;
     const w = d > 60 ? 0.7 : d > 36 ? 1 : d > 18 ? 1.4 : 2;
     this.svg.style.setProperty('--cut-w', this.mini ? w * 2.6 : w);
     this.updateLines(d, animate);
-    this.updateLabels(n, d, animate);
+    this.updateLabels(n, d, animate, group);
     if (animate) this.animateValue(n / d);
     else { this.value = n / d; this.drawShade(this.value); }
     if (this.interactive) this.buildHits(d);
